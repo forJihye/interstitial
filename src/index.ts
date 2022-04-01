@@ -14,26 +14,19 @@ interface Page {
   duration: number;
   el: HTMLElement;
   video?: HTMLVideoElement[];
+  iframe?: HTMLIFrameElement;
 }
-
-const pageSetting: PageSetting[] = [
-  {
-    type: 'iframe',
-    src: 'blue',
-    duration: 5,
-  },
-  {
-    type: 'video',
-    src: 'yellow',
-    duration: 5,
-    video: ['https://hashsnap-static.s3.ap-northeast-2.amazonaws.com/file/video/kiosk-hera-2105.mp4']
-  },
-  {
-    type: 'iframe',
-    src: 'green',
-    duration: 5
-  }
-]
+// {
+//   type: 'iframe',
+//   src: 'blue',
+//   duration: 5,
+// },
+// {
+//   type: 'video',
+//   src: 'yellow',
+//   duration: 5,
+//   video: ['https://hashsnap-static.s3.ap-northeast-2.amazonaws.com/file/video/kiosk-hera-2105.mp4']
+// },
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 const loadVideo = (src: string) => new Promise(res => {
@@ -44,10 +37,11 @@ const loadVideo = (src: string) => new Promise(res => {
   video.src = src;
 })
 
-const createPages = () => pageSetting.map(async (page, i) => {
+const createPages = (pageSetting: PageSetting[]) => pageSetting.map(async (page, i) => {
   if (page.type === 'iframe') {
-    const el = Object.assign(document.createElement('div'), {className: 'page', style: `background: ${page.src}`});
-    return {...page, el, duration: page.duration * 1000};
+    const el = Object.assign(document.createElement('div'), {className: 'page'});
+    const iframe = Object.assign(document.createElement('iframe'), {id: `iframe${i}}`, src: page.src});
+    return {...page, el, duration: page.duration * 1000, iframe};
   } else if (page.type === 'video') {
     const el = Object.assign(document.createElement('div'), {className: 'page', style: `background: ${page.src}`});
     if (page.video) {
@@ -60,7 +54,15 @@ const createPages = () => pageSetting.map(async (page, i) => {
   }
 }) as Promise<Page>[];
 
-// // interstitial
+function appendPages(pages: Page[]) {
+  pages.forEach((page) => {
+    const { type, el } = page;
+    if (type === 'video') page.video?.forEach(v => el.appendChild(v));
+    else if (type === 'iframe') el.appendChild(page.iframe as HTMLIFrameElement);
+    document.body.appendChild(el);
+  });
+}
+
 const play = async (pages: Page[]) => {
   pages.forEach(({el}) => el.style.transition = 'opacity 0.5s');
   pages.forEach(({el}) => el.style.opacity = '0');
@@ -94,12 +96,20 @@ const play = async (pages: Page[]) => {
 }
 
 const main = async () => { try {
-  const pages = await Promise.all(createPages())
-  pages.forEach((page) => {
-    const {type, el} = page;
-    if (type === 'video') page.video?.forEach(v => el.appendChild(v));
-    document.body.appendChild(el)
-  });
+  const pageSetting: PageSetting[] = [
+    {
+      type: 'iframe',
+      src: 'https://hashsnap-static.s3.ap-northeast-2.amazonaws.com/views/3502_skhynix/9840x3360/index.html',
+      duration: 30,
+    },
+    {
+      type: 'iframe',
+      src: 'https://hashsnap-static.s3.ap-northeast-2.amazonaws.com/views/3502_skhynix/8000x2500/index.html',
+      duration: 30
+    }
+  ]  
+  const pages = await Promise.all(createPages(pageSetting));
+  appendPages(pages);
   await play(pages);
 } catch(err: any) {
   throw new Error(err)
